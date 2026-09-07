@@ -1,0 +1,4 @@
+train: /home/ubuntu-no-25/tkm-new-fllstck/datasets/tkm8/train/images
+val: /home/ubuntu-no-25/tkm-new-fllstck/datasets/tkm8/valid/images
+nc: 8
+names: ['bantal', 'lemari', 'kursi', 'tas ransel', 'hp', 'remote AC', 'meja', 'piring']

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Guru — TKM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+    <style>
+        .panel { @apply bg-white rounded-lg shadow p-4; }
+        .panel-title { @apply text-sm font-semibold text-slate-600 mb-2; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
+        <div class="max-w-screen-2xl mx-auto px-6 py-3 flex justify-between items-center">
+            <h1 class="text-lg font-bold">📊 Dashboard Guru — TK Montessori</h1>
+            <nav class="space-x-4 text-sm">
+                <a href="/dashboard" class="text-blue-600 font-semibold">Guru</a>
+                <a href="/dashboard/ortu" class="text-slate-600 hover:text-slate-900">Ortu</a>
+                <a href="/admin" class="text-slate-600 hover:text-slate-900">Admin</a>
+                <a href="/docs" class="text-slate-600 hover:text-slate-900">API</a>
+                <a href="#" id="logoutBtn" class="text-red-600">Logout</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-screen-2xl mx-auto p-6">
+        <!-- Filter -->
+        <div class="mb-4 flex gap-4 items-center text-sm">
+            <label>Siswa:
+                <select id="studentSel" class="border rounded p-1 ml-1"></select>
+            </label>
+            <button id="refreshBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">Refresh</button>
+            <span id="lastUpdate" class="text-slate-500"></span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Panel 1: Hari Ini -->
+            <section class="panel lg:col-span-1">
+                <h2 class="panel-title">📅 Panel 1 — Hari Ini</h2>
+                <div id="p1-today" class="space-y-2 text-sm">Loading...</div>
+            </section>
+
+            <!-- Panel 2: Upload Video -->
+            <section class="panel">
+                <h2 class="panel-title">📤 Panel 2 — Upload Video</h2>
+                <form id="uploadForm" class="space-y-2">
+                    <input type="file" name="file" accept="video/*" class="text-xs w-full" required>
+                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm w-full">Upload + Trigger Worker</button>
+                </form>
+                <div id="uploadResult" class="text-xs text-slate-600 mt-2"></div>
+            </section>
+
+            <!-- Panel 3: Live Map -->
+            <section class="panel">
+                <h2 class="panel-title">🗺️ Panel 3 — Live Map (zone)</h2>
+                <svg viewBox="0 0 100 100" class="w-full h-40 bg-slate-100 rounded">
+                    <polygon points="5,10 45,10 45,55 5,55" fill="#22c55e" fill-opacity="0.2" stroke="#22c55e" stroke-width="0.4"/>
+                    <polygon points="55,15 95,15 95,60 55,60" fill="#3b82f6" fill-opacity="0.2" stroke="#3b82f6" stroke-width="0.4"/>
+                    <polygon points="20,65 80,65 80,95 20,95" fill="#eab308" fill-opacity="0.2" stroke="#eab308" stroke-width="0.4"/>
+                    <text x="25" y="35" font-size="4" fill="#15803d">Rak</text>
+                    <text x="75" y="40" font-size="4" fill="#1d4ed8">Meja</text>
+                    <text x="50" y="82" font-size="4" fill="#a16207">Circle</text>
+                </svg>
+                <p class="text-xs text-slate-500 mt-1">ArUco POSIT skip fase ini (sesuai PRD). Zone geometry akan ter-update otomatis saat ada worker run.</p>
+            </section>
+
+            <!-- Panel 4: Heatmap 7x24 -->
+            <section class="panel">
+                <h2 class="panel-title">🔥 Panel 4 — Heatmap 7×24 (detik aktivitas)</h2>
+                <canvas id="heatmap" width="240" height="100" class="w-full"></canvas>
+            </section>
+
+            <!-- Panel 5: Crops Gallery -->
+            <section class="panel lg:col-span-1">
+                <h2 class="panel-title">🖼️ Panel 5 — Crops Gallery (deteksi terakhir)</h2>
+                <div id="p5-crops" class="text-xs text-slate-600">Belum ada deteksi hari ini. Jalankan worker untuk populate.</div>
+            </section>
+
+            <!-- Panel 6: Annotated Video -->
+            <section class="panel lg:col-span-3">
+                <h2 class="panel-title">🎬 Panel 6 — Video 1 Menit Klasifikasi Lengkap</h2>
+                <div id="p6-video-list" class="grid grid-cols-1 md:grid-cols-2 gap-3">Loading video list...</div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        const API = "/api/v1";
+        function getToken() { return localStorage.getItem("tkm_token") || ""; }
+        async function api(path, opts = {}) {
+            opts.headers = Object.assign({"Content-Type":"application/json"}, opts.headers || {});
+            const t = getToken();
+            if (t) opts.headers["Authorization"] = "Bearer " + t;
+            const r = await fetch(API + path, opts);
+            if (!r.ok) throw new Error("HTTP " + r.status + ": " + (await r.text()));
+            return r.json();
+        }
+
+        async function loadStudents() {
+            const data = await api("/students");
+            const sel = document.getElementById("studentSel");
+            sel.innerHTML = '<option value="">— pilih —</option>' + data.map(s =>
+                `<option value="${s.id}">${s.name}</option>`).join("");
+            if (data.length) sel.value = data[0].id;
+        }
+
+        async function refresh() {
+            const sid = document.getElementById("studentSel").value;
+            if (!sid) return;
+            try {
+                const today = await api(`/dashboard/today?student_id=${sid}`);
+                const html = `
+                    <div class="flex justify-between"><span>Total Fokus:</span><strong>${today.total_focus_min} min</strong></div>
+                    <div class="flex justify-between"><span>Free Play:</span><strong>${today.total_freeplay_min} min</strong></div>
+                    <div class="flex justify-between"><span>Idle:</span><strong>${today.total_idle_min} min</strong></div>
+                    <div class="flex justify-between"><span>Social:</span><strong>${today.total_social_min} min</strong></div>
+                    <div class="mt-2 pt-2 border-t text-xs">
+                        <div>Materials: ${today.materials.length}</div>
+                        <div>Date: ${today.date}</div>
+                    </div>`;
+                document.getElementById("p1-today").innerHTML = html;
+            } catch(e) { document.getElementById("p1-today").textContent = "Error: " + e.message; }
+
+            try {
+                const videos = await api("/dashboard/videos");
+                const list = document.getElementById("p6-video-list");
+                if (videos.videos.length === 0) {
+                    list.innerHTML = '<div class="col-span-2 text-slate-500 text-sm">Belum ada video. Upload di Panel 2 atau jalankan worker.</div>';
+                } else {
+                    list.innerHTML = videos.videos.map(v => `
+                        <div class="border rounded p-2">
+                            <div class="text-xs text-slate-500 mb-1">${v.started_at} · ${v.duration_sec}s · ${v.detections_count} det</div>
+                            ${v.annotated_url ? `<video controls class="w-full rounded" src="${v.annotated_url}"></video>` : '<div class="text-slate-400 text-sm">No annotated video</div>'}
+                        </div>`).join("");
+                }
+            } catch(e) { document.getElementById("p6-video-list").textContent = "Error: " + e.message; }
+
+            try {
+                const heat = await api("/dashboard/heatmap");
+                drawHeatmap(heat.grid_seconds);
+            } catch(e) { console.error("heatmap:", e); }
+
+            try {
+                const events = await api("/activities?student_id=" + sid + "&limit=20");
+                const cropsDiv = document.getElementById("p5-crops");
+                if (events.length === 0) {
+                    cropsDiv.innerHTML = '<div class="text-slate-500">Belum ada activity. Jalankan worker untuk populate.</div>';
+                } else {
+                    cropsDiv.innerHTML = '<div class="space-y-1">' + events.slice(0, 8).map(a => `
+                        <div class="border-l-2 border-blue-400 pl-2">
+                            <div class="font-semibold">${a.material_name || "(no material)"}</div>
+                            <div class="text-slate-500">${a.started_at} · ${a.duration_sec}s · ${a.behavior}</div>
+                        </div>`).join("") + '</div>';
+                }
+            } catch(e) { cropsDiv.textContent = "Error: " + e.message; }
+
+            document.getElementById("lastUpdate").textContent = "Updated: " + new Date().toLocaleTimeString();
+        }
+
+        function drawHeatmap(grid) {
+            const canvas = document.getElementById("heatmap");
+            const ctx = canvas.getContext("2d");
+            const cellW = canvas.width / 24;
+            const cellH = canvas.height / 7;
+            const max = Math.max(1, ...grid.flat());
+            for (let d = 0; d < 7; d++) {
+                for (let h = 0; h < 24; h++) {
+                    const v = grid[d][h] / max;
+                    ctx.fillStyle = `rgba(59,130,246,${v})`;
+                    ctx.fillRect(h * cellW, d * cellH, cellW - 1, cellH - 1);
+                }
+            }
+        }
+
+        document.getElementById("uploadForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const r = await fetch(API + "/videos/upload", {
+                method: "POST",
+                headers: {"Authorization": "Bearer " + getToken()},
+                body: fd,
+            });
+            const d = await r.json();
+            document.getElementById("uploadResult").innerHTML = r.ok
+                ? `✅ Uploaded: id=${d.id}, key=${d.raw_s3_key}<br><a href="${d.presigned_url}" target="_blank" class="text-blue-600">View raw</a>`
+                : "❌ " + JSON.stringify(d);
+            if (r.ok) refresh();
+        });
+
+        document.getElementById("refreshBtn").onclick = refresh;
+        document.getElementById("logoutBtn").onclick = (e) => {
+            e.preventDefault();
+            localStorage.removeItem("tkm_token");
+            window.location.href = "/login";
+        };
+
+        (async () => {
+            await loadStudents();
+            await refresh();
+            setInterval(refresh, 30000);
+        })();
+    </script>
+</body>
+</html>

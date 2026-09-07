@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 45
+names: ['AC', 'bantal', 'blok kayu', 'botol minum', 'box', 'brownstair', 'buku', 'gelas', 'globe', 'gunting', 'hp', 'jam', 'jam dinding', 'kelender', 'kemoceng', 'keranjang', 'kertas', 'keset', 'knobbedcylinders', 'kursi', 'lemari', 'mainan blok', 'mangkok', 'matras', 'meja', 'pena', 'penggaris', 'penghapus', 'pensil', 'pink tower', 'pintu', 'piring', 'pisau', 'plastik', 'rak', 'rautan', 'red rods', 'remote AC', 'sapu', 'sendok', 'serokan sampah', 'spidol', 'tas ransel', 'tas sandang', 'tikar']
+
+roboflow:
+  workspace: aidizzacky-harizulfadly-mtd-sains-data-terapan
+  project: montessori
+  version: 5
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/aidizzacky-harizulfadly-mtd-sains-data-terapan/montessori/dataset/5

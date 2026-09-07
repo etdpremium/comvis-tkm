@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Monitoring — TKM Montessori</title>
+    <!-- HTMX: standar industri untuk partial page update tanpa SPA framework -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        /* Hindari CDN Tailwind di production: build via Tailwind CLI / PostCSS.
+           Untuk POC lokal, kita inline utility classes via @apply (lihat <style>). */
+        .panel { @apply bg-white rounded-lg shadow p-4 mb-4; }
+        .panel-title { @apply text-sm font-semibold text-slate-600 mb-2; }
+        .badge-error { @apply text-xs text-red-600; }
+        .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
+        .htmx-request .htmx-indicator { opacity: 1; }
+        .htmx-request.htmx-indicator { opacity: 1; }
+    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
+        <div class="max-w-screen-2xl mx-auto px-6 py-3 flex justify-between items-center">
+            <div>
+                <h1 class="text-lg font-bold">TKM Montessori — Monitoring Aktivitas</h1>
+                <p class="text-xs text-slate-500">Video mentah MinIO → Computer Vision → ringkasan terstruktur (HTMX-powered)</p>
+            </div>
+            <nav class="space-x-4 text-sm flex items-center">
+                <a href="/docs" class="text-slate-600 hover:text-slate-900">API</a>
+                <a href="#" id="logoutBtn" class="text-red-600">Logout</a>
+                <span id="userBadge" class="text-xs text-slate-600"></span>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-screen-2xl mx-auto p-6 space-y-4">
+        <!-- Refresh + auto-load. Tanpa dropdown — dashboard selalu tampil video terbaru. -->
+        <div class="flex gap-3 items-center text-sm">
+            <button class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
+                    hx-get="/api/v1/dashboard/htmx/summary"
+                    hx-trigger="click"
+                    hx-target="#dashboard-body"
+                    hx-swap="innerHTML">
+                Muat Ulang
+            </button>
+            <span class="htmx-indicator text-slate-500">⏳ memuat...</span>
+            <span id="lastUpdate" class="text-slate-500"></span>
+        </div>
+
+        <!-- Initial load: latest done video -->
+        <div id="dashboard-body"
+             hx-get="/api/v1/dashboard/htmx/summary"
+             hx-trigger="load delay:300ms"
+             hx-swap="innerHTML">
+            <p class="text-slate-500 text-sm">⏳ Memuat dashboard...</p>
+        </div>
+    </main>
+
+    <script>
+        // Set last update time after HTMX swaps content
+        document.body.addEventListener('htmx:afterSwap', (e) => {
+            if (e.target.id === 'dashboard-body') {
+                document.getElementById('lastUpdate').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+            }
+        });
+        // Session probe + auto-redirect ke /login kalau belum auth
+        (async () => {
+            try {
+                const r = await fetch('/api/v1/auth/me', { credentials: 'include' });
+                if (r.ok) {
+                    const me = await r.json();
+                    document.getElementById('userBadge').textContent = '· ' + me.email;
+                } else {
+                    window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+                }
+            } catch (_) {
+                window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+            }
+        })();
+        document.getElementById('logoutBtn').onclick = async (e) => {
+            e.preventDefault();
+            await fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'include' });
+            localStorage.removeItem('tkm_token');
+            window.location.href = '/login';
+        };
+    </script>
+</body>
+</html>

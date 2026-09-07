@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ settings.app_name }} — {{ settings.app_version }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex items-center justify-center">
+    <main class="max-w-3xl mx-auto p-8">
+        <h1 class="text-4xl font-bold mb-2">TK Montessori Activity Monitor</h1>
+        <p class="text-lg text-slate-600 mb-6">Sistem otomatis pantau aktivitas siswa lewat CCTV + YOLOv8 + ArUco QR</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            <a href="/login" class="block p-6 bg-white rounded-lg shadow hover:shadow-md transition">
+                <h2 class="font-semibold text-xl mb-1">🔐 Login</h2>
+                <p class="text-slate-600 text-sm">Masuk sebagai guru/admin/orang tua</p>
+            </a>
+            <a href="/dashboard" class="block p-6 bg-white rounded-lg shadow hover:shadow-md transition">
+                <h2 class="font-semibold text-xl mb-1">📊 Dashboard Guru</h2>
+                <p class="text-slate-600 text-sm">6 panel monitoring real-time</p>
+            </a>
+            <a href="/dashboard/ortu" class="block p-6 bg-white rounded-lg shadow hover:shadow-md transition">
+                <h2 class="font-semibold text-xl mb-1">👨‍👩‍👧 Dashboard Orang Tua</h2>
+                <p class="text-slate-600 text-sm">Pantau perkembangan anak</p>
+            </a>
+            <a href="/admin" class="block p-6 bg-white rounded-lg shadow hover:shadow-md transition">
+                <h2 class="font-semibold text-xl mb-1">⚙️ Admin Panel</h2>
+                <p class="text-slate-600 text-sm">CRUD siswa, material, zona, video</p>
+            </a>
+        </div>
+        <div class="text-center text-sm text-slate-500 mt-12">
+            <p>API: <a href="/docs" class="text-blue-600 hover:underline">/docs</a> · <a href="/health" class="text-blue-600 hover:underline">/health</a> · v{{ settings.app_version }}</p>
+        </div>
+    </main>
+</body>
+</html>

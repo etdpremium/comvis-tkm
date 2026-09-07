@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — TKM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center">
+    <form id="loginForm" class="bg-white p-8 rounded-lg shadow-md w-96">
+        <h1 class="text-2xl font-bold mb-6 text-center">TK Montessori Login</h1>
+        <label class="block mb-2 text-sm font-medium">Email</label>
+        <input type="text" id="email" value="admin@tkm.local" class="w-full p-2 border border-slate-300 rounded mb-4" required>
+        <label class="block mb-2 text-sm font-medium">Password</label>
+        <input type="password" id="password" value="admin123" class="w-full p-2 border border-slate-300 rounded mb-6" required>
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold p-2 rounded">
+            Login
+        </button>
+        <p id="msg" class="mt-4 text-sm text-red-600 text-center"></p>
+        <p class="mt-4 text-xs text-slate-500 text-center">
+            Demo: admin@tkm.local / admin123 · guru@tkm.local / guru123
+        </p>
+    </form>
+    <script>
+        const next = new URLSearchParams(location.search).get("next") || "/dashboard";
+
+        // Skip form kalau session cookie masih valid
+        (async () => {
+            try {
+                const r = await fetch("/api/v1/auth/me", { credentials: "include" });
+                if (r.ok) {
+                    window.location.replace(next);
+                }
+            } catch (_) {}
+        })();
+
+        document.getElementById("loginForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+            const r = await fetch("/api/v1/auth/login-json", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                credentials: "include",  // simpan HttpOnly cookie
+                body: JSON.stringify({email, password}),
+            });
+            const data = await r.json();
+            if (r.ok) {
+                if (data.access_token) localStorage.setItem("tkm_token", data.access_token);
+                window.location.href = next;
+            } else {
+                document.getElementById("msg").textContent =
+                    (data.detail && (typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail)))
+                    || "Login gagal";
+            }
+        });
+    </script>
+</body>
+</html>

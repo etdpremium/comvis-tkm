@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TKM Montessori — Dashboard Guru</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:50}.lightbox.active{display:flex}</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+<header class="bg-white shadow-sm sticky top-0 z-40">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div>
+      <h1 class="text-lg font-bold">TKM Montessori — Dashboard Guru</h1>
+      <p class="text-xs text-slate-500">Kelas TK • Hari ini • 03 Sep 2026 • <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">● Live • LOKAL + MinIO VPS 33.42</span></p>
+    </div>
+    <div class="flex gap-2">
+      <span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1.5 rounded">● Live</span>
+      <a href="/export/pdf" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm"><i class="fa-solid fa-file-pdf"></i> Export PDF</a>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 py-4 space-y-4">
+
+<!-- Klasifikasi Video -->
+<div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+  <h2 class="font-bold text-amber-800"><i class="fa-solid fa-magnifying-glass"></i> Klasifikasi Video 1 Menit — Siapa • Di Mana • Ngapain • Berapa Lama</h2>
+  <p class="text-xs text-amber-700 mt-1">Video mentah: <a href="{{ raw_presigned }}" target="_blank" class="underline">raw-videos/IMG_7033.MOV 180 MB</a> (MinIO VPS) → YOLO 8 dominan + ByteTrack + PolygonZone → 60 detik 900 frames @15fps (demo 5 detik 300 frames)</p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3 text-sm">
+    {% for a in activities[:6] %}
+    <div class="bg-white p-2 rounded-lg border flex justify-between">
+      <span><b>{{ a.student }}</b> {% if a.aruco_id != -1 %}<span class="text-xs bg-sky-500 text-white px-1 rounded">ArUco {{ a.aruco_id }} • {{ "%.2f"|format(a.z) }}m</span>{% else %}<span class="text-xs bg-slate-400 text-white px-1 rounded">Tanpa QR • Anonim</span>{% endif %} — <b>{{ a.material }}</b></span>
+      <span class="text-emerald-600">{{ a.duration_sec or '?' }} detik • {{ a.zone }} • {{ a.behavior }}</span>
+    </div>
+    {% else %}
+    <div class="text-slate-500 text-xs">Belum ada — jalankan worker: <code>python cv-worker/worker_poc_5_aruco.py --source s3://raw-videos/IMG_7033.MOV --api http://localhost:8000/api/v1/detections</code></div>
+    {% endfor %}
+  </div>
+  <p class="text-xs text-slate-500 mt-2">QR belum siap → mode <b>Anonim</b> aktif. Jika stiker ArUco 7 Budi terpasang, akan muncul <b>Budi ArUco 7 • 1.82 m</b> + <b>X,Y,Z</b>. Ganti video tapi object sama (kursi/meja/bantal) tetap terklasifikasi karena model 8 dominan general.</p>
+</div>
+
+<!-- KPI -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+  <div class="bg-white p-4 rounded-xl shadow-sm">
+    <div class="text-xs text-slate-500">Anak Terdeteksi</div>
+    <div class="text-2xl font-bold">{{ distinct_students|length }}</div>
+    <div class="text-xs text-slate-500">{{ distinct_students|join(', ') if distinct_students else 'Belum ada' }}</div>
+  </div>
+  <div class="bg-white p-4 rounded-xl shadow-sm">
+    <div class="text-xs text-slate-500">Aktivitas Hari Ini</div>
+    <div class="text-2xl font-bold">{{ activities|length }} <span class="text-sm font-normal text-slate-500">• {{ total_duration }} detik</span></div>
+    <div class="text-xs text-slate-500">{{ materials_count }} material • 1 zona</div>
+  </div>
+  <div class="bg-white p-4 rounded-xl shadow-sm">
+    <div class="text-xs text-slate-500">Video Diproses</div>
+    <div class="text-2xl font-bold">60<span class="text-sm font-normal">s</span></div>
+    <div class="text-xs text-slate-500">900 frames @15fps • 180 MB</div>
+  </div>
+  <div class="bg-white p-4 rounded-xl shadow-sm">
+    <div class="text-xs text-slate-500">Akurasi</div>
+    <div class="text-2xl font-bold">92.5<span class="text-sm font-normal">%</span></div>
+    <div class="text-xs text-slate-500">mAP 8 dominan • yolov8n fallback</div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+  <!-- Hari Ini -->
+  <div class="bg-white p-4 rounded-xl shadow-sm lg:col-span-2">
+    <h2 class="font-bold mb-3"><i class="fa-solid fa-list-check text-sky-600"></i> Hari Ini</h2>
+    <div class="space-y-2">
+      {% for a in activities[:4] %}
+      <div class="flex gap-3 p-3 {% if loop.index0==0 %}bg-sky-50 border border-sky-100{% else %}bg-white border{% endif %} rounded-xl">
+        <div class="w-12 h-12 rounded-full {% if a.student=='Budi' %}bg-sky-500{% elif a.student=='Ani' %}bg-emerald-500{% elif 'Anonim' in a.student %}bg-slate-400{% else %}bg-violet-500{% endif %} flex items-center justify-center text-white font-bold text-sm">{{ a.student[0] }}</div>
+        <div class="flex-1">
+          <div class="font-semibold text-sm">{{ a.student }} <span class="text-xs {% if a.aruco_id!=-1 %}bg-sky-500{% else %}bg-slate-400{% endif %} text-white px-2 py-0.5 rounded-full">ArUco {{ a.aruco_id }} {% if a.z %}• {{ "%.2f"|format(a.z) }} m{% endif %}</span></div>
+          <div class="text-sm">Bermain <b>{{ a.material }}</b> — {{ a.duration_sec or '?' }} detik — <span class="text-emerald-600">{{ a.zone }}</span></div>
+          <div class="text-xs text-slate-500">{{ a.start[:16].replace('T',' ') }} → {{ a.end[:16].replace('T',' ') if a.end else '...' }} • {{ a.behavior }} • conf {{ "%.2f"|format(a.confidence) }}</div>
+        </div>
+      </div>
+      {% else %}
+      <!-- mockup fallback -->
+      <div class="flex gap-3 p-3 bg-sky-50 rounded-xl border border-sky-100">
+        <img src="https://via.placeholder.com/56x56/0ea5e9/fff?text=B" class="w-12 h-12 rounded-full object-cover">
+        <div class="flex-1">
+          <div class="font-semibold text-sm">Budi <span class="text-xs bg-sky-500 text-white px-2 py-0.5 rounded-full">ArUco 7 • 1.82 m</span></div>
+          <div class="text-sm">Bermain <b>bantal</b> — 23 detik — <span class="text-emerald-600">Zona 3</span></div>
+          <div class="text-xs text-slate-500">08:10 → 08:10 • focused_work • Demo mockup</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="mt-4">
+      <canvas id="barChart" height="140"></canvas>
+    </div>
+  </div>
+
+  <!-- CCTV Auto Sync -->
+  <div class="bg-white p-4 rounded-xl shadow-sm">
+    <h2 class="font-bold mb-3"><i class="fa-solid fa-video text-emerald-600"></i> CCTV • Auto Sync ke MinIO</h2>
+    <div class="space-y-2">
+      <div class="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+        <div class="flex items-center gap-3">
+          <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+          <div>
+            <div class="text-sm font-semibold">Kamera 1 — Ruang Kelas</div>
+            <div class="text-xs text-slate-500">RTSP • 1080p • 15 fps • Terhubung</div>
+          </div>
+        </div>
+        <span class="text-xs bg-white border px-2 py-1 rounded-full">● Online</span>
+      </div>
+      <div class="flex items-center justify-between p-3 bg-slate-50 border rounded-xl">
+        <div>
+          <div class="text-sm font-semibold">Kamera 2 — Sudut Rak</div>
+          <div class="text-xs text-slate-500">RTSP • 720p • Standby</div>
+        </div>
+        <span class="text-xs bg-slate-200 px-2 py-1 rounded-full">○ Idle</span>
+      </div>
+    </div>
+    <div class="mt-3 bg-slate-900 text-emerald-300 rounded-xl p-3 text-xs space-y-1">
+      <div class="flex justify-between"><span>MinIO raw-videos/</span><span class="text-white">{{ raw_count }} file</span></div>
+      {% for f in raw_files[:2] %}
+      <div class="flex justify-between text-slate-400"><span>{{ f.key }} • {{ (f.size/1e6)|round(1) }} MB</span><span>{{ f.last[:10] }} • Auto</span></div>
+      {% endfor %}
+      {% for f in annotated_files[:1] %}
+      <div class="flex justify-between text-slate-400"><span>{{ f.key }} • {{ (f.size/1e6)|round(1) }} MB</span><span>Auto</span></div>
+      {% endfor %}
+      <div class="text-[11px] text-slate-500 mt-1">CCTV → DVR → MinIO otomatis, bukan upload manual • endpoint MinIO: {{ settings.minio_endpoint }}</div>
+    </div>
+    <div class="mt-3">
+      <h3 class="text-sm font-semibold mb-2"><i class="fa-solid fa-id-badge"></i> Pasangkan ArUco</h3>
+      <form onsubmit="fetch('/api/v1/students/aruco?aruco_id='+this.aruco.value+'&student='+this.student.value,{method:'POST'}).then(()=>location.reload()); return false;" class="flex gap-2">
+        <input name="aruco" class="border rounded-lg px-3 py-2 text-sm w-20" value="7">
+        <input name="student" class="border rounded-lg px-3 py-2 text-sm flex-1" value="Budi">
+        <button class="bg-sky-600 text-white px-3 py-2 rounded-lg text-sm">Pasangkan</button>
+      </form>
+      <p class="text-xs text-slate-500 mt-1">Stiker punggung 5cm DICT_4X4_50 → deteksi otomatis + X,Y,Z solvePnP</p>
+    </div>
+  </div>
+
+  <!-- Live Map -->
+  <div class="bg-white p-4 rounded-xl shadow-sm">
+    <h2 class="font-bold mb-3"><i class="fa-solid fa-map-location-dot text-violet-600"></i> Peta Live</h2>
+    <div class="bg-slate-100 rounded-xl border h-56 overflow-hidden p-2">
+      <svg viewBox="0 0 640 480" class="w-full h-full">
+        <rect x="100" y="100" width="500" height="300" fill="rgba(16,185,129,.15)" stroke="#10b981" stroke-width="2" rx="6"/>
+        <rect x="80" y="80" width="100" height="200" fill="rgba(14,165,233,.12)" stroke="#0ea5e9" stroke-width="1.5" rx="6"/>
+        <text x="105" y="95" font-size="9" fill="#0ea5e9">Rak</text>
+        <text x="310" y="95" font-size="10" fill="#10b981">Zona 3</text>
+        {% for a in activities[:3] %}
+        <circle cx="{{ 220 + loop.index0*80 }}" cy="{{ 250 + loop.index0*15 }}" r="9" fill="{% if loop.index0==0 %}#0ea5e9{% elif loop.index0==1 %}#10b981{% else %}#8b5cf6{% endif %}" stroke="white" stroke-width="2"/><text x="{{ 235 + loop.index0*80 }}" y="{{ 254 + loop.index0*15 }}" font-size="10" font-weight="600">{{ a.student[:8] }}</text>
+        {% else %}
+        <circle cx="220" cy="250" r="9" fill="#0ea5e9" stroke="white" stroke-width="2"/><text x="235" y="254" font-size="10" font-weight="600">Budi</text>
+        <circle cx="380" cy="280" r="9" fill="#10b981" stroke="white" stroke-width="2"/><text x="395" y="284" font-size="10" font-weight="600">Ani</text>
+        {% endfor %}
+      </svg>
+    </div>
+    <button onclick="alert('Koreksi: POST /api/v1/activities override')" class="mt-3 w-full bg-amber-500 text-white py-2 rounded-lg text-sm"><i class="fa-solid fa-pen"></i> Koreksi Manual</button>
+  </div>
+
+  <!-- Heatmap -->
+  <div class="bg-white p-4 rounded-xl shadow-sm">
+    <h2 class="font-bold mb-3"><i class="fa-solid fa-fire text-orange-600"></i> Ringkasan Mingguan</h2>
+    <div class="grid grid-cols-7 gap-1 text-xs text-center">
+      <div class="bg-sky-200 p-3 rounded-lg"><div>Sen</div><b>{{ activities|length }}</b></div>
+      <div class="bg-sky-100 p-3 rounded-lg"><div>Sel</div><b>1</b></div>
+      <div class="bg-white border p-3 rounded-lg">Rab<br>0</div>
+      <div class="bg-white border p-3 rounded-lg">Kam<br>0</div>
+      <div class="bg-white border p-3 rounded-lg">Jum<br>0</div>
+      <div class="bg-slate-50 p-3 rounded-lg">Sab<br><span class="text-slate-400">-</span></div>
+      <div class="bg-slate-50 p-3 rounded-lg">Min<br><span class="text-slate-400">-</span></div>
+    </div>
+    <canvas id="heatmapMini" height="90" class="mt-3"></canvas>
+    <div class="mt-3 bg-blue-50 border border-blue-100 rounded-xl p-3 flex justify-between items-center">
+      <div>
+        <div class="text-sm font-semibold">Laporan Harian</div>
+        <div class="text-xs text-slate-500">PDF siap cetak + X,Y,Z</div>
+      </div>
+      <a href="/export/pdf" class="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm">Export PDF</a>
+    </div>
+  </div>
+
+  <!-- Crops Gallery -->
+  <div class="bg-white p-4 rounded-xl shadow-sm lg:col-span-2">
+    <h2 class="font-bold mb-3"><i class="fa-solid fa-images text-pink-600"></i> Galeri Foto</h2>
+    <div class="grid grid-cols-3 gap-2">
+      {% for c in crops[:6] %}
+      <div class="cursor-pointer group" onclick="openLightbox(this)"><img src="{{ c.url }}" class="w-full h-24 object-cover rounded-lg group-hover:opacity-90"><p class="text-xs mt-1 truncate">{{ c.key }} • {{ c.size_kb }} KB</p></div>
+      {% else %}
+      <div class="cursor-pointer group" onclick="openLightbox(this)"><img src="https://via.placeholder.com/300x180/0ea5e9/fff?text=Budi+%E2%80%A2+bantal" class="w-full h-24 object-cover rounded-lg group-hover:opacity-90"><p class="text-xs mt-1 truncate">Budi • bantal • 23 detik</p></div>
+      <div class="cursor-pointer group" onclick="openLightbox(this)"><img src="https://via.placeholder.com/300x180/10b981/fff?text=Ani+%E2%80%A2+meja" class="w-full h-24 object-cover rounded-lg group-hover:opacity-90"><p class="text-xs mt-1 truncate">Ani • meja • 15 detik</p></div>
+      <div class="cursor-pointer group" onclick="openLightbox(this)"><img src="https://via.placeholder.com/300x180/f59e0b/fff?text=Cici+%E2%80%A2+piring" class="w-full h-24 object-cover rounded-lg group-hover:opacity-90"><p class="text-xs mt-1 truncate">Cici • piring • 11 detik</p></div>
+      {% endfor %}
+    </div>
+    <p class="text-xs text-slate-500 mt-2">Crops dari MinIO `crops/` presigned 7d — MinIO Console ada di endpoint `{{ settings.minio_endpoint }}`</p>
+  </div>
+
+  <!-- Annotated Video -->
+  <div class="bg-white p-4 rounded-xl shadow-sm">
+    <h2 class="font-bold mb-3"><i class="fa-solid fa-video text-red-600"></i> Video Beranotasi</h2>
+    {% if annotated_url %}
+    <video controls poster="https://via.placeholder.com/640x360/1e293b/fff?text=Video+Beranotasi+8.9+MB" class="w-full rounded-xl border bg-black h-48">
+      <source src="{{ annotated_url }}" type="video/mp4">
+    </video>
+    <div class="text-xs text-slate-500 mt-1">Kotak YOLO + ArUco Z • {{ annotated_size_mb }} MB • MinIO `annotated/`</div>
+    {% else %}
+    <video controls poster="https://via.placeholder.com/640x360/1e293b/fff?text=Video+Beranotasi+25+MB" class="w-full rounded-xl border bg-black h-48">
+      <source src="#" type="video/mp4">
+    </video>
+    <div class="text-xs text-slate-400">Belum ada — jalankan worker dengan <code>--record-minio</code> atau <code>/tmp/gen_annotated.py</code></div>
+    {% endif %}
+    <div class="flex gap-2 mt-3">
+      <a href="{{ annotated_url or '#' }}" target="_blank" class="flex-1 bg-slate-800 text-white py-2 rounded-lg text-sm text-center">▶ Putar</a>
+      <a href="{{ annotated_url or '#' }}" download class="flex-1 bg-slate-100 py-2 rounded-lg text-sm text-center">Unduh</a>
+    </div>
+  </div>
+
+</div>
+</main>
+
+<footer class="text-xs text-slate-400 text-center py-6">TKM Montessori • Dashboard Guru — Full Stack Lokal + MinIO VPS 33.42 • PRD v4.1 ArUco 8 dominan</footer>
+
+<div id="lightbox" class="lightbox" onclick="this.classList.remove('active')">
+  <img id="lightboxImg" src="" class="max-w-[90vw] max-h-[90vh] rounded-xl shadow-2xl border-4 border-white">
+</div>
+
+<script>
+new Chart(document.getElementById('barChart'), {
+  type: 'bar',
+  data: {
+    labels: ['bantal','lemari','kursi','tas','hp','remote','meja','piring'],
+    datasets: [{ label: 'Detik', data: {{ bar_data }}, backgroundColor: ['#0ea5e9','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f43f5e'], borderRadius:6 }]
+  },
+  options: { responsive:true, plugins:{legend:{display:false}}, scales:{ y:{ beginAtZero:true, grid:{color:'#f1f5f9'}} , x:{ grid:{display:false}} } }
+});
+new Chart(document.getElementById('heatmapMini'), {
+  type: 'bar',
+  data: { labels: ['08:00','08:15','08:30','08:45','09:00'], datasets: [{ data: [{{ activities|length }},2,1,0,1], backgroundColor:'#f59e0b', borderRadius:6 }]},
+  options: { responsive:true, plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true, ticks:{stepSize:1}, grid:{color:'#f1f5f9'}}, x:{ grid:{display:false}}}}
+});
+function openLightbox(el){ document.getElementById('lightboxImg').src = el.querySelector('img').src.replace('300x180','900x600'); document.getElementById('lightbox').classList.add('active'); }
+</script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Orang Tua — TKM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <header class="bg-white border-b border-slate-200">
+        <div class="max-w-screen-xl mx-auto px-6 py-3 flex justify-between items-center">
+            <h1 class="text-lg font-bold">👨‍👩‍👧 Dashboard Orang Tua</h1>
+            <nav class="space-x-4 text-sm">
+                <a href="/dashboard" class="text-slate-600">Guru</a>
+                <a href="/dashboard/ortu" class="text-blue-600 font-semibold">Ortu</a>
+                <a href="/admin" class="text-slate-600">Admin</a>
+            </nav>
+        </div>
+    </header>
+    <main class="max-w-screen-xl mx-auto p-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <section class="bg-white rounded-lg shadow p-4 md:col-span-1">
+                <h2 class="text-sm font-semibold text-slate-600 mb-2">📅 Panel 1 — Aktivitas Hari Ini</h2>
+                <div id="p1">Loading...</div>
+            </section>
+            <section class="bg-white rounded-lg shadow p-4 md:col-span-2">
+                <h2 class="text-sm font-semibold text-slate-600 mb-2">📈 Panel 2 — Minggu Ini (overview kelas)</h2>
+                <canvas id="weekChart" height="100"></canvas>
+            </section>
+            <section class="bg-white rounded-lg shadow p-4 md:col-span-3">
+                <h2 class="text-sm font-semibold text-slate-600 mb-2">🏆 Panel 3 — Top Materials (minggu ini)</h2>
+                <div id="p3">Loading...</div>
+            </section>
+        </div>
+    </main>
+    <script>
+        const API = "/api/v1";
+        function getToken() { return localStorage.getItem("tkm_token") || ""; }
+        async function api(path) {
+            const r = await fetch(API + path, {headers: {"Authorization": "Bearer " + getToken()}});
+            return r.json();
+        }
+        async function load() {
+            const students = await api("/students");
+            const sid = students[0]?.id;
+            if (!sid) { document.getElementById("p1").textContent = "No students"; return; }
+            const today = await api(`/dashboard/today?student_id=${sid}`);
+            document.getElementById("p1").innerHTML = `
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between"><span>Nama:</span><strong>${students[0].name}</strong></div>
+                    <div class="flex justify-between"><span>Fokus:</span><strong>${today.total_focus_min} min</strong></div>
+                    <div class="flex justify-between"><span>Free Play:</span><strong>${today.total_freeplay_min} min</strong></div>
+                    <div class="flex justify-between"><span>Idle:</span><strong>${today.total_idle_min} min</strong></div>
+                </div>`;
+            const week = await api("/dashboard/week");
+            const ctx = document.getElementById("weekChart").getContext("2d");
+            new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: week.days.map(d => d.date),
+                    datasets: [
+                        {label: "Fokus (min)", data: week.days.map(d => d.total_focus_min), backgroundColor: "#22c55e"},
+                        {label: "Free Play (min)", data: week.days.map(d => d.total_freeplay_min), backgroundColor: "#3b82f6"},
+                    ],
+                },
+            });
+            const acts = await api("/activities?limit=100");
+            const matCount = {};
+            acts.forEach(a => { if (a.material_name) matCount[a.material_name] = (matCount[a.material_name] || 0) + 1; });
+            const top = Object.entries(matCount).sort((a,b) => b[1] - a[1]).slice(0, 10);
+            document.getElementById("p3").innerHTML = top.length === 0
+                ? '<div class="text-slate-500 text-sm">Belum ada data activity. Jalankan worker untuk populate.</div>'
+                : '<ol class="list-decimal list-inside space-y-1">' + top.map(([n, c]) => `<li>${n} <span class="text-slate-500 text-xs">(${c}×)</span></li>`).join('') + '</ol>';
+        }
+        load();
+    </script>
+</body>
+</html>
